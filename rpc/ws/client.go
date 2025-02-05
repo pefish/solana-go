@@ -102,13 +102,19 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) (
 
 	c.connCtx, c.connCtxCancel = context.WithCancel(context.Background())
 	go func() {
-		pongWait := 60 * time.Second
-		if opt != nil && opt.PongWait != 0 {
-			pongWait = opt.PongWait
+		readDeadline := 60 * time.Second
+		if opt != nil && opt.ReadDeadline != 0 {
+			readDeadline = opt.ReadDeadline
 		}
-		c.conn.SetReadDeadline(time.Now().Add(pongWait))
-		c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
-		ticker := time.NewTicker((pongWait * 9) / 10)
+		c.conn.SetReadDeadline(time.Now().Add(readDeadline))
+		c.conn.SetPongHandler(func(appData string) error {
+			if opt != nil && opt.PongHandler != nil {
+				return opt.PongHandler(appData, c.conn)
+			}
+			c.conn.SetReadDeadline(time.Now().Add(readDeadline))
+			return nil
+		})
+		ticker := time.NewTicker((readDeadline * 9) / 10)
 		for {
 			select {
 			case <-c.connCtx.Done():
