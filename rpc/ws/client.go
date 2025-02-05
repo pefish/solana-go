@@ -52,10 +52,6 @@ type Client struct {
 const (
 	// Time allowed to write a message to the peer.
 	writeWait = 10 * time.Second
-	// Time allowed to read the next pong message from the peer.
-	pongWait = 60 * time.Second
-	// Send pings to peer with this period. Must be less than pongWait.
-	pingPeriod = (pongWait * 9) / 10
 )
 
 // Connect creates a new websocket client connecting to the provided endpoint.
@@ -106,9 +102,13 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) (
 
 	c.connCtx, c.connCtxCancel = context.WithCancel(context.Background())
 	go func() {
+		pongWait := opt.PongWait
+		if pongWait == 0 {
+			pongWait = 60 * time.Second
+		}
 		c.conn.SetReadDeadline(time.Now().Add(pongWait))
 		c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
-		ticker := time.NewTicker(pingPeriod)
+		ticker := time.NewTicker((pongWait * 9) / 10)
 		for {
 			select {
 			case <-c.connCtx.Done():
