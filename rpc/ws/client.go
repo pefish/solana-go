@@ -102,9 +102,9 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) (
 
 	c.connCtx, c.connCtxCancel = context.WithCancel(context.Background())
 	go func() {
-		pongWait := opt.PongWait
-		if pongWait == 0 {
-			pongWait = 60 * time.Second
+		pongWait := 60 * time.Second
+		if opt != nil && opt.PongWait != 0 {
+			pongWait = opt.PongWait
 		}
 		c.conn.SetReadDeadline(time.Now().Add(pongWait))
 		c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
