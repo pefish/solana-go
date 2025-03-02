@@ -25,10 +25,7 @@ import (
 
 func main() {
 	ctx := context.Background()
-	client, err := ws.Connect(context.Background(), rpc.MainNetBeta_WS)
-	if err != nil {
-		panic(err)
-	}
+	client := ws.Connect(context.Background(), rpc.MainNetBeta_WS)
 	program := solana.MustPublicKeyFromBase58("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA") // token
 	defer client.Close()
 

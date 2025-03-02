@@ -25,10 +25,7 @@ import (
 
 func main() {
 	ctx := context.Background()
-	client, err := ws.Connect(context.Background(), rpc.TestNet_WS)
-	if err != nil {
-		panic(err)
-	}
+	client := ws.Connect(context.Background(), rpc.TestNet_WS)
 	defer client.Close()
 
 	txSig := solana.MustSignatureFromBase58("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx")

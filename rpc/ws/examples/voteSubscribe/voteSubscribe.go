@@ -24,10 +24,7 @@ import (
 
 func main() {
 	ctx := context.Background()
-	client, err := ws.Connect(context.Background(), rpc.MainNetBeta_WS)
-	if err != nil {
-		panic(err)
-	}
+	client := ws.Connect(context.Background(), rpc.MainNetBeta_WS)
 	defer client.Close()
 
 	// NOTE: this subscription must be enabled by the node you're connecting to.
