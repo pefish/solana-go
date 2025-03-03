@@ -113,11 +113,16 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 
 	isReconnectChan := make(chan bool)
 	go func() {
+		reconnecting := false
 		for {
 			select {
 			case <-c.connCtx.Done():
 				return
 			case <-isReconnectChan:
+				if reconnecting {
+					continue
+				}
+				reconnecting = true
 				var resp *http.Response
 				var err error
 				for {
@@ -161,8 +166,6 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 			case <-c.connCtx.Done():
 				return
 			case <-ticker.C:
-				c.lock.Lock()
-				defer c.lock.Unlock()
 				c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 				err := c.conn.WriteMessage(websocket.PingMessage, []byte{})
 				if err != nil {
@@ -174,6 +177,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 			}
 		}
 	}()
+
 	go func() {
 		for {
 			select {
@@ -195,8 +199,6 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 }
 
 func (c *Client) Close() {
-	c.lock.Lock()
-	defer c.lock.Unlock()
 	c.connCtxCancel()
 	c.conn.Close()
 }
