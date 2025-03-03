@@ -117,6 +117,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 			if opt != nil && opt.PongHandler != nil {
 				return opt.PongHandler(appData, c.conn)
 			}
+			fmt.Println("pong")
 			c.conn.SetReadDeadline(time.Now().Add(readDeadline))
 			return nil
 		})
@@ -127,16 +128,17 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 				return
 			case <-ticker.C:
 				c.lock.Lock()
-				defer c.lock.Unlock()
-
 				c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 				err := c.conn.WriteMessage(websocket.PingMessage, []byte{})
 				if err != nil {
 					fmt.Println("ping failed, to reconnect...")
+					c.lock.Unlock()
 					c.Close()
 					c = ConnectWithOptions(ctx, rpcEndpoint, opt)
 					return
 				}
+				fmt.Println("ping")
+				c.lock.Unlock()
 			}
 		}
 	}()
