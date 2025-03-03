@@ -109,7 +109,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 
 	c.connCtx, c.connCtxCancel = context.WithCancel(context.Background())
 	go func() {
-		readDeadline := 60 * time.Second
+		readDeadline := 10 * time.Second
 		if opt != nil && opt.ReadDeadline != 0 {
 			readDeadline = opt.ReadDeadline
 		}
