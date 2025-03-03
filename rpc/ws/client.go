@@ -88,24 +88,36 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 	if opt != nil && opt.HttpHeader != nil && len(opt.HttpHeader) > 0 {
 		httpHeader = opt.HttpHeader
 	}
-	var resp *http.Response
-	var err error
-	for {
-		c.conn, resp, err = dialer.DialContext(ctx, rpcEndpoint, httpHeader)
-		if err != nil {
-			if resp != nil {
-				body, _ := io.ReadAll(resp.Body)
-				err = fmt.Errorf("new ws client: dial: %w, status: %s, body: %q", err, resp.Status, string(body))
-			} else {
-				err = fmt.Errorf("new ws client: dial: %w", err)
+
+	isReconnectChan := make(chan bool, 1)
+	isReconnectChan <- true
+	go func() {
+		for {
+			select {
+			case <-c.connCtx.Done():
+				return
+			case <-isReconnectChan:
+				var resp *http.Response
+				var err error
+				for {
+					c.conn, resp, err = dialer.DialContext(ctx, rpcEndpoint, httpHeader)
+					if err != nil {
+						if resp != nil {
+							body, _ := io.ReadAll(resp.Body)
+							err = fmt.Errorf("new ws client: dial: %w, status: %s, body: %q", err, resp.Status, string(body))
+						} else {
+							err = fmt.Errorf("new ws client: dial: %w", err)
+						}
+						fmt.Printf("connect failed, to reconnect... <err: %s>\n", err.Error())
+						time.Sleep(time.Second)
+						continue
+					}
+					fmt.Println("connect success.")
+					break
+				}
 			}
-			fmt.Printf("connect failed, to reconnect... <err: %s>\n", err.Error())
-			time.Sleep(time.Second)
-			continue
 		}
-		fmt.Println("connect success.")
-		break
-	}
+	}()
 
 	c.connCtx, c.connCtxCancel = context.WithCancel(context.Background())
 	go func() {
@@ -129,19 +141,15 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 				return
 			case <-ticker.C:
 				c.lock.Lock()
+				defer c.lock.Unlock()
 				c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 				err := c.conn.WriteMessage(websocket.PingMessage, []byte{})
 				if err != nil {
 					fmt.Printf("ping failed, to reconnect... <err: %s>\n", err.Error())
-					c.lock.Unlock()
-					c.closeAllSubscription(err)
-					c.Close()
-					c = ConnectWithOptions(ctx, rpcEndpoint, opt)
-					fmt.Printf("reconnect success\n")
-					return
+					isReconnectChan <- true
+					continue
 				}
 				fmt.Println("ping")
-				c.lock.Unlock()
 			}
 		}
 	}()
@@ -155,11 +163,8 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 				_, message, err := c.conn.ReadMessage()
 				if err != nil {
 					fmt.Printf("ReadMessage error, to reconnect... <err: %s>\n", err.Error())
-					c.closeAllSubscription(err)
-					c.Close()
-					c = ConnectWithOptions(ctx, rpcEndpoint, opt)
-					fmt.Printf("reconnect success\n")
-					return
+					isReconnectChan <- true
+					continue
 				}
 				c.handleMessage(message)
 			}
