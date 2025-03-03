@@ -134,6 +134,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 				if err != nil {
 					fmt.Printf("ping failed, to reconnect... <err: %s>\n", err.Error())
 					c.lock.Unlock()
+					c.closeAllSubscription(err)
 					c.Close()
 					c = ConnectWithOptions(ctx, rpcEndpoint, opt)
 					return
@@ -143,7 +144,24 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 			}
 		}
 	}()
-	go c.receiveMessages()
+	go func() {
+		for {
+			select {
+			case <-c.connCtx.Done():
+				return
+			default:
+				_, message, err := c.conn.ReadMessage()
+				if err != nil {
+					fmt.Printf("ReadMessage error <err: %s>\n", err.Error())
+					c.closeAllSubscription(err)
+					c.Close()
+					c = ConnectWithOptions(ctx, rpcEndpoint, opt)
+					return
+				}
+				c.handleMessage(message)
+			}
+		}
+	}()
 	return c
 }
 
@@ -152,23 +170,6 @@ func (c *Client) Close() {
 	defer c.lock.Unlock()
 	c.connCtxCancel()
 	c.conn.Close()
-}
-
-func (c *Client) receiveMessages() {
-	for {
-		select {
-		case <-c.connCtx.Done():
-			return
-		default:
-			_, message, err := c.conn.ReadMessage()
-			if err != nil {
-				fmt.Printf("ReadMessage error <err: %s>\n", err.Error())
-				c.closeAllSubscription(err)
-				return
-			}
-			c.handleMessage(message)
-		}
-	}
 }
 
 // GetUint64 returns the value retrieved by `Get`, cast to a uint64 if possible.
