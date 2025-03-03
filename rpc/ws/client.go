@@ -136,7 +136,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 					c.lock.Unlock()
 					c.closeAllSubscription(err)
 					c.Close()
-					c = ConnectWithOptions(ctx, rpcEndpoint, opt)
+					c.conn = ConnectWithOptions(ctx, rpcEndpoint, opt).conn
 					return
 				}
 				// fmt.Println("ping")
@@ -153,9 +153,10 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 				_, message, err := c.conn.ReadMessage()
 				if err != nil {
 					fmt.Printf("ReadMessage error <err: %s>\n", err.Error())
+					fmt.Printf("to reconnect...\n")
 					c.closeAllSubscription(err)
 					c.Close()
-					c = ConnectWithOptions(ctx, rpcEndpoint, opt)
+					c.conn = ConnectWithOptions(ctx, rpcEndpoint, opt).conn
 					return
 				}
 				c.handleMessage(message)
