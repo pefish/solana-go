@@ -112,17 +112,13 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 	c.connCtx, c.connCtxCancel = context.WithCancel(context.Background())
 
 	isReconnectChan := make(chan bool)
+	isReconnetDoneChan := make(chan bool)
 	go func() {
-		reconnecting := false
 		for {
 			select {
 			case <-c.connCtx.Done():
 				return
 			case <-isReconnectChan:
-				if reconnecting {
-					continue
-				}
-				reconnecting = true
 				var resp *http.Response
 				var err error
 				for {
@@ -140,6 +136,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 						continue
 					}
 					fmt.Println("connect success.")
+					isReconnetDoneChan <- true
 					break
 				}
 			}
@@ -156,7 +153,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 			if opt != nil && opt.PongHandler != nil {
 				return opt.PongHandler(appData, c.conn)
 			}
-			fmt.Println("pong")
+			// fmt.Println("pong")
 			c.conn.SetReadDeadline(time.Now().Add(readDeadline))
 			return nil
 		})
@@ -171,9 +168,10 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 				if err != nil {
 					fmt.Printf("ping failed, to reconnect... <err: %s>\n", err.Error())
 					isReconnectChan <- true
+					<-isReconnetDoneChan
 					continue
 				}
-				fmt.Println("ping")
+				// fmt.Println("ping")
 			}
 		}
 	}()
@@ -184,11 +182,12 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 			case <-c.connCtx.Done():
 				return
 			default:
-				fmt.Printf("reading...\n")
+				// fmt.Printf("reading...\n")
 				_, message, err := c.conn.ReadMessage()
 				if err != nil {
 					fmt.Printf("ReadMessage error, to reconnect... <err: %s>\n", err.Error())
 					isReconnectChan <- true
+					<-isReconnetDoneChan
 					continue
 				}
 				c.handleMessage(message)
@@ -387,13 +386,13 @@ func (c *Client) subscribe(
 
 	zlog.Debug("writing data to conn", zap.String("data", string(data)))
 	c.conn.SetWriteDeadline(time.Now().Add(writeWait))
-	fmt.Printf("subscribing...\n")
+	// fmt.Printf("subscribing...\n")
 	err = c.conn.WriteMessage(websocket.TextMessage, data)
 	if err != nil {
 		delete(c.subscriptionByRequestID, req.ID)
 		return nil, fmt.Errorf("unable to write request: %w", err)
 	}
-	fmt.Printf("subscribe success\n")
+	// fmt.Printf("subscribe success\n")
 
 	return sub, nil
 }
