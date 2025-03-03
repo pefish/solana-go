@@ -103,6 +103,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 			time.Sleep(time.Second)
 			continue
 		}
+		fmt.Println("connect success.")
 		break
 	}
 
