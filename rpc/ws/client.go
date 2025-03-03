@@ -99,7 +99,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 			} else {
 				err = fmt.Errorf("new ws client: dial: %w", err)
 			}
-			fmt.Printf("connect failed, to reconnect...(%s)\n", err.Error())
+			fmt.Printf("connect failed, to reconnect... <err: %s>\n", err.Error())
 			time.Sleep(time.Second)
 			continue
 		}
@@ -132,7 +132,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 				c.conn.SetWriteDeadline(time.Now().Add(writeWait))
 				err := c.conn.WriteMessage(websocket.PingMessage, []byte{})
 				if err != nil {
-					fmt.Println("ping failed, to reconnect...")
+					fmt.Printf("ping failed, to reconnect... <err: %s>\n", err.Error())
 					c.lock.Unlock()
 					c.Close()
 					c = ConnectWithOptions(ctx, rpcEndpoint, opt)
@@ -162,6 +162,7 @@ func (c *Client) receiveMessages() {
 		default:
 			_, message, err := c.conn.ReadMessage()
 			if err != nil {
+				fmt.Printf("ReadMessage error <err: %s>\n", err.Error())
 				c.closeAllSubscription(err)
 				return
 			}
