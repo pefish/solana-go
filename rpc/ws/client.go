@@ -136,7 +136,10 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 					c.lock.Unlock()
 					c.closeAllSubscription(err)
 					c.Close()
-					c.conn = ConnectWithOptions(ctx, rpcEndpoint, opt).conn
+					newC := ConnectWithOptions(ctx, rpcEndpoint, opt)
+					c.conn = newC.conn
+					c.subscriptionByRequestID = newC.subscriptionByRequestID
+					c.subscriptionByWSSubID = newC.subscriptionByWSSubID
 					return
 				}
 				fmt.Println("ping")
@@ -157,7 +160,10 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 					fmt.Printf("to reconnect...\n")
 					c.closeAllSubscription(err)
 					c.Close()
-					c.conn = ConnectWithOptions(ctx, rpcEndpoint, opt).conn
+					newC := ConnectWithOptions(ctx, rpcEndpoint, opt)
+					c.conn = newC.conn
+					c.subscriptionByRequestID = newC.subscriptionByRequestID
+					c.subscriptionByWSSubID = newC.subscriptionByWSSubID
 					return
 				}
 				c.handleMessage(message)
@@ -364,6 +370,7 @@ func (c *Client) subscribe(
 		delete(c.subscriptionByRequestID, req.ID)
 		return nil, fmt.Errorf("unable to write request: %w", err)
 	}
+	fmt.Printf("subscribe success\n")
 
 	return sub, nil
 }
