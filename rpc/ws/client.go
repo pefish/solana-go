@@ -118,7 +118,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 			if opt != nil && opt.PongHandler != nil {
 				return opt.PongHandler(appData, c.conn)
 			}
-			// fmt.Println("pong")
+			fmt.Println("pong")
 			c.conn.SetReadDeadline(time.Now().Add(readDeadline))
 			return nil
 		})
@@ -139,7 +139,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 					c.conn = ConnectWithOptions(ctx, rpcEndpoint, opt).conn
 					return
 				}
-				// fmt.Println("ping")
+				fmt.Println("ping")
 				c.lock.Unlock()
 			}
 		}
@@ -150,6 +150,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 			case <-c.connCtx.Done():
 				return
 			default:
+				fmt.Printf("reading...\n")
 				_, message, err := c.conn.ReadMessage()
 				if err != nil {
 					fmt.Printf("ReadMessage error <err: %s>\n", err.Error())
@@ -357,6 +358,7 @@ func (c *Client) subscribe(
 
 	zlog.Debug("writing data to conn", zap.String("data", string(data)))
 	c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+	fmt.Printf("subscribing...\n")
 	err = c.conn.WriteMessage(websocket.TextMessage, data)
 	if err != nil {
 		delete(c.subscriptionByRequestID, req.ID)
