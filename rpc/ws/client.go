@@ -92,6 +92,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 	var resp *http.Response
 	var err error
 	for {
+		fmt.Println("connecting...")
 		c.conn, resp, err = dialer.DialContext(ctx, rpcEndpoint, httpHeader)
 		if err != nil {
 			if resp != nil {
@@ -108,6 +109,8 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 		break
 	}
 
+	c.connCtx, c.connCtxCancel = context.WithCancel(context.Background())
+
 	isReconnectChan := make(chan bool)
 	go func() {
 		for {
@@ -118,6 +121,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 				var resp *http.Response
 				var err error
 				for {
+					fmt.Println("connecting...")
 					c.conn, resp, err = dialer.DialContext(ctx, rpcEndpoint, httpHeader)
 					if err != nil {
 						if resp != nil {
@@ -137,7 +141,6 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 		}
 	}()
 
-	c.connCtx, c.connCtxCancel = context.WithCancel(context.Background())
 	go func() {
 		readDeadline := 10 * time.Second
 		if opt != nil && opt.ReadDeadline != 0 {
