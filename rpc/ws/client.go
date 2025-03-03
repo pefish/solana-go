@@ -89,8 +89,26 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 		httpHeader = opt.HttpHeader
 	}
 
-	isReconnectChan := make(chan bool, 1)
-	isReconnectChan <- true
+	var resp *http.Response
+	var err error
+	for {
+		c.conn, resp, err = dialer.DialContext(ctx, rpcEndpoint, httpHeader)
+		if err != nil {
+			if resp != nil {
+				body, _ := io.ReadAll(resp.Body)
+				err = fmt.Errorf("new ws client: dial: %w, status: %s, body: %q", err, resp.Status, string(body))
+			} else {
+				err = fmt.Errorf("new ws client: dial: %w", err)
+			}
+			fmt.Printf("connect failed, to reconnect... <err: %s>\n", err.Error())
+			time.Sleep(time.Second)
+			continue
+		}
+		fmt.Println("connect success.")
+		break
+	}
+
+	isReconnectChan := make(chan bool)
 	go func() {
 		for {
 			select {
