@@ -89,6 +89,11 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 		httpHeader = opt.HttpHeader
 	}
 
+	readDeadline := 10 * time.Second
+	if opt != nil && opt.ReadDeadline != 0 {
+		readDeadline = opt.ReadDeadline
+	}
+
 	var resp *http.Response
 	var err error
 	for {
@@ -106,6 +111,12 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 			continue
 		}
 		fmt.Println("connect success.")
+		c.conn.SetReadDeadline(time.Now().Add(readDeadline))
+		c.conn.SetPongHandler(func(appData string) error {
+			fmt.Println("pong")
+			c.conn.SetReadDeadline(time.Now().Add(readDeadline))
+			return nil
+		})
 		break
 	}
 
@@ -136,6 +147,12 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 						continue
 					}
 					fmt.Println("connect success.")
+					c.conn.SetReadDeadline(time.Now().Add(readDeadline))
+					c.conn.SetPongHandler(func(appData string) error {
+						fmt.Println("pong")
+						c.conn.SetReadDeadline(time.Now().Add(readDeadline))
+						return nil
+					})
 					isReconnetDoneChan <- true
 					break
 				}
@@ -144,16 +161,6 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 	}()
 
 	go func() {
-		readDeadline := 10 * time.Second
-		if opt != nil && opt.ReadDeadline != 0 {
-			readDeadline = opt.ReadDeadline
-		}
-		c.conn.SetReadDeadline(time.Now().Add(readDeadline))
-		c.conn.SetPongHandler(func(appData string) error {
-			fmt.Println("pong")
-			c.conn.SetReadDeadline(time.Now().Add(readDeadline))
-			return nil
-		})
 		ticker := time.NewTicker((readDeadline * 9) / 10)
 		for {
 			select {
