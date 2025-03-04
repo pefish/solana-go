@@ -113,7 +113,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 		fmt.Println("connect success.")
 		c.conn.SetReadDeadline(time.Now().Add(readDeadline))
 		c.conn.SetPongHandler(func(appData string) error {
-			fmt.Println("pong")
+			// fmt.Println("pong")
 			c.conn.SetReadDeadline(time.Now().Add(readDeadline))
 			return nil
 		})
@@ -149,7 +149,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 					fmt.Println("connect success.")
 					c.conn.SetReadDeadline(time.Now().Add(readDeadline))
 					c.conn.SetPongHandler(func(appData string) error {
-						fmt.Println("pong")
+						// fmt.Println("pong")
 						c.conn.SetReadDeadline(time.Now().Add(readDeadline))
 						return nil
 					})
@@ -176,7 +176,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 					fmt.Println("reconnect success")
 					continue
 				}
-				fmt.Println("ping")
+				// fmt.Println("ping")
 			}
 		}
 	}()
@@ -369,7 +369,7 @@ func (c *Client) subscribe(
 	unsubscribeMethod string,
 	decoderFunc decoderFunc,
 ) (*Subscription, error) {
-	fmt.Printf("subscrib\n")
+	// fmt.Printf("subscrib\n")
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -393,13 +393,13 @@ func (c *Client) subscribe(
 
 	zlog.Debug("writing data to conn", zap.String("data", string(data)))
 	c.conn.SetWriteDeadline(time.Now().Add(writeWait))
-	fmt.Printf("subscribing...\n")
+	// fmt.Printf("subscribing...\n")
 	err = c.conn.WriteMessage(websocket.TextMessage, data)
 	if err != nil {
 		delete(c.subscriptionByRequestID, req.ID)
 		return nil, fmt.Errorf("unable to write request: %w", err)
 	}
-	fmt.Printf("subscribe success\n")
+	// fmt.Printf("subscribe success\n")
 
 	return sub, nil
 }
