@@ -23,8 +23,6 @@ import (
 	"math/rand"
 	"net/http"
 	"time"
-
-	"github.com/gorilla/websocket"
 )
 
 type request struct {
