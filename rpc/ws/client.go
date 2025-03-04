@@ -166,6 +166,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 					fmt.Printf("ping failed, to reconnect... <err: %s>\n", err.Error())
 					isReconnectChan <- true
 					<-isReconnetDoneChan
+					fmt.Println("reconnect success")
 					continue
 				}
 				fmt.Println("ping")
@@ -185,6 +186,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 					fmt.Printf("ReadMessage error, to reconnect... <err: %s>\n", err.Error())
 					isReconnectChan <- true
 					<-isReconnetDoneChan
+					fmt.Println("reconnect success")
 					continue
 				}
 				c.handleMessage(message)
