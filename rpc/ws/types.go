@@ -76,7 +76,6 @@ type Options struct {
 	HandshakeTimeout time.Duration
 	ShortID          bool // some RPC do not support int63/uint64 id, so need to enable it to rand a int31/uint32 id
 	ReadDeadline     time.Duration
-	PongHandler      func(appData string, conn *websocket.Conn) error
 }
 
 var DefaultHandshakeTimeout = 45 * time.Second

@@ -150,10 +150,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 		}
 		c.conn.SetReadDeadline(time.Now().Add(readDeadline))
 		c.conn.SetPongHandler(func(appData string) error {
-			if opt != nil && opt.PongHandler != nil {
-				return opt.PongHandler(appData, c.conn)
-			}
-			// fmt.Println("pong")
+			fmt.Println("pong")
 			c.conn.SetReadDeadline(time.Now().Add(readDeadline))
 			return nil
 		})
@@ -171,7 +168,7 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 					<-isReconnetDoneChan
 					continue
 				}
-				// fmt.Println("ping")
+				fmt.Println("ping")
 			}
 		}
 	}()
