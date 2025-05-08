@@ -543,6 +543,10 @@ type InstructionInfoEnvelope struct {
 	asInstructionInfo *InstructionInfo
 }
 
+func (t *InstructionInfoEnvelope) AsInstructionInfo() *InstructionInfo {
+	return t.asInstructionInfo
+}
+
 type InstructionInfo struct {
 	Info            map[string]interface{} `json:"info"`
 	InstructionType string                 `json:"type"`
