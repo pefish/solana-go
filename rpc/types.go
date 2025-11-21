@@ -547,6 +547,10 @@ func (t *InstructionInfoEnvelope) AsInstructionInfo() *InstructionInfo {
 	return t.asInstructionInfo
 }
 
+func (t *InstructionInfoEnvelope) AsString() string {
+	return t.asString
+}
+
 type InstructionInfo struct {
 	Info            map[string]interface{} `json:"info"`
 	InstructionType string                 `json:"type"`
