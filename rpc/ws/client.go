@@ -52,10 +52,14 @@ type Client struct {
 const (
 	// Time allowed to write a message to the peer.
 	writeWait = 10 * time.Second
+	// Time allowed to read the next pong message from the peer.
+	pongWait = 60 * time.Second
+	// Send pings to peer with this period. Must be less than pongWait.
+	pingPeriod = (pongWait * 9) / 10
 )
 
 // Connect creates a new websocket client connecting to the provided endpoint.
-func Connect(ctx context.Context, rpcEndpoint string) *Client {
+func Connect(ctx context.Context, rpcEndpoint string) (c *Client, err error) {
 	return ConnectWithOptions(ctx, rpcEndpoint, nil)
 }
 
@@ -63,8 +67,8 @@ func Connect(ctx context.Context, rpcEndpoint string) *Client {
 // endpoint with a http header if available The http header can be helpful to
 // pass basic authentication params as prescribed
 // ref https://github.com/gorilla/websocket/issues/209
-func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *Client {
-	c := &Client{
+func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) (c *Client, err error) {
+	c = &Client{
 		rpcURL:                  rpcEndpoint,
 		subscriptionByRequestID: map[uint64]*Subscription{},
 		subscriptionByWSSubID:   map[uint64]*Subscription{},
@@ -88,124 +92,67 @@ func ConnectWithOptions(ctx context.Context, rpcEndpoint string, opt *Options) *
 	if opt != nil && opt.HttpHeader != nil && len(opt.HttpHeader) > 0 {
 		httpHeader = opt.HttpHeader
 	}
-
-	readDeadline := 10 * time.Second
-	if opt != nil && opt.ReadDeadline != 0 {
-		readDeadline = opt.ReadDeadline
-	}
-
 	var resp *http.Response
-	var err error
-	for {
-		fmt.Println("connecting...")
-		c.conn, resp, err = dialer.DialContext(ctx, rpcEndpoint, httpHeader)
-		if err != nil {
-			if resp != nil {
-				body, _ := io.ReadAll(resp.Body)
-				err = fmt.Errorf("new ws client: dial: %w, status: %s, body: %q", err, resp.Status, string(body))
-			} else {
-				err = fmt.Errorf("new ws client: dial: %w", err)
-			}
-			fmt.Printf("connect failed, to reconnect... <err: %s>\n", err.Error())
-			time.Sleep(time.Second)
-			continue
+	c.conn, resp, err = dialer.DialContext(ctx, rpcEndpoint, httpHeader)
+	if err != nil {
+		if resp != nil {
+			body, _ := io.ReadAll(resp.Body)
+			err = fmt.Errorf("new ws client: dial: %w, status: %s, body: %q", err, resp.Status, string(body))
+		} else {
+			err = fmt.Errorf("new ws client: dial: %w", err)
 		}
-		fmt.Println("connect success.")
-		c.conn.SetReadDeadline(time.Now().Add(readDeadline))
-		c.conn.SetPongHandler(func(appData string) error {
-			// fmt.Println("pong")
-			c.conn.SetReadDeadline(time.Now().Add(readDeadline))
-			return nil
-		})
-		break
+		return nil, err
 	}
 
 	c.connCtx, c.connCtxCancel = context.WithCancel(context.Background())
-
-	isReconnectChan := make(chan bool)
-	isReconnetDoneChan := make(chan bool)
 	go func() {
-		for {
-			select {
-			case <-c.connCtx.Done():
-				return
-			case <-isReconnectChan:
-				var resp *http.Response
-				var err error
-				for {
-					fmt.Println("connecting...")
-					c.conn, resp, err = dialer.DialContext(ctx, rpcEndpoint, httpHeader)
-					if err != nil {
-						if resp != nil {
-							body, _ := io.ReadAll(resp.Body)
-							err = fmt.Errorf("new ws client: dial: %w, status: %s, body: %q", err, resp.Status, string(body))
-						} else {
-							err = fmt.Errorf("new ws client: dial: %w", err)
-						}
-						fmt.Printf("connect failed, to reconnect... <err: %s>\n", err.Error())
-						time.Sleep(time.Second)
-						continue
-					}
-					fmt.Println("connect success.")
-					c.conn.SetReadDeadline(time.Now().Add(readDeadline))
-					c.conn.SetPongHandler(func(appData string) error {
-						// fmt.Println("pong")
-						c.conn.SetReadDeadline(time.Now().Add(readDeadline))
-						return nil
-					})
-					isReconnetDoneChan <- true
-					break
-				}
-			}
-		}
-	}()
-
-	go func() {
-		ticker := time.NewTicker((readDeadline * 9) / 10)
+		c.conn.SetReadDeadline(time.Now().Add(pongWait))
+		c.conn.SetPongHandler(func(string) error { c.conn.SetReadDeadline(time.Now().Add(pongWait)); return nil })
+		ticker := time.NewTicker(pingPeriod)
 		for {
 			select {
 			case <-c.connCtx.Done():
 				return
 			case <-ticker.C:
-				c.conn.SetWriteDeadline(time.Now().Add(writeWait))
-				err := c.conn.WriteMessage(websocket.PingMessage, []byte{})
-				if err != nil {
-					fmt.Printf("ping failed, to reconnect... <err: %s>\n", err.Error())
-					isReconnectChan <- true
-					<-isReconnetDoneChan
-					fmt.Println("reconnect success")
-					continue
-				}
-				// fmt.Println("ping")
+				c.sendPing()
 			}
 		}
 	}()
+	go c.receiveMessages()
+	return c, nil
+}
 
-	go func() {
-		for {
-			select {
-			case <-c.connCtx.Done():
-				return
-			default:
-				// fmt.Printf("reading...\n")
-				_, message, err := c.conn.ReadMessage()
-				if err != nil {
-					fmt.Printf("ReadMessage error, to reconnect... <err: %s>\n", err.Error())
-					isReconnectChan <- true
-					<-isReconnetDoneChan
-					fmt.Println("reconnect success")
-					continue
-				}
-				c.handleMessage(message)
-			}
-		}
-	}()
-	return c
+func (c *Client) sendPing() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+
+	c.conn.SetWriteDeadline(time.Now().Add(writeWait))
+	if err := c.conn.WriteMessage(websocket.PingMessage, []byte{}); err != nil {
+		return
+	}
 }
 
 func (c *Client) Close() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	c.connCtxCancel()
 	c.conn.Close()
+}
+
+func (c *Client) receiveMessages() {
+	for {
+		select {
+		case <-c.connCtx.Done():
+			return
+		default:
+			_, message, err := c.conn.ReadMessage()
+			if err != nil {
+				c.closeAllSubscription(err)
+				return
+			}
+			c.handleMessage(message)
+		}
+	}
 }
 
 // GetUint64 returns the value retrieved by `Get`, cast to a uint64 if possible.
@@ -369,7 +316,6 @@ func (c *Client) subscribe(
 	unsubscribeMethod string,
 	decoderFunc decoderFunc,
 ) (*Subscription, error) {
-	// fmt.Printf("subscrib\n")
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
@@ -393,13 +339,11 @@ func (c *Client) subscribe(
 
 	zlog.Debug("writing data to conn", zap.String("data", string(data)))
 	c.conn.SetWriteDeadline(time.Now().Add(writeWait))
-	// fmt.Printf("subscribing...\n")
 	err = c.conn.WriteMessage(websocket.TextMessage, data)
 	if err != nil {
 		delete(c.subscriptionByRequestID, req.ID)
 		return nil, fmt.Errorf("unable to write request: %w", err)
 	}
-	// fmt.Printf("subscribe success\n")
 
 	return sub, nil
 }

@@ -24,7 +24,10 @@ import (
 )
 
 func main() {
-	client := ws.Connect(context.Background(), rpc.MainNetBeta_WS)
+	client, err := ws.Connect(context.Background(), rpc.MainNetBeta_WS)
+	if err != nil {
+		panic(err)
+	}
 	defer client.Close()
 	program := solana.MustPublicKeyFromBase58("9xQeWvG816bUx9EPjHmaT23yvVM2ZWbrrpZb9PusVFin") // serum
 

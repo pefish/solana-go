@@ -349,7 +349,7 @@ func (mx *Message) MarshalV0() ([]byte, error) {
 	}
 	buf = append([]byte{byte(versionNum + 127)}, buf...)
 
-	if mx.AddressTableLookups != nil && len(mx.AddressTableLookups) > 0 {
+	if len(mx.AddressTableLookups) > 0 {
 		// wite length of address table lookups as u8
 		buf = append(buf, byte(len(mx.AddressTableLookups)))
 		for _, lookup := range mx.AddressTableLookups {
@@ -647,7 +647,7 @@ func (m Message) checkPreconditions() error {
 	// and there are > 0 lookups,
 	// but the address table is empty,
 	// then we can't build the account meta list:
-	if m.IsVersioned() && m.AddressTableLookups.NumLookups() > 0 && (m.addressTables == nil || len(m.addressTables) == 0) {
+	if m.IsVersioned() && m.AddressTableLookups.NumLookups() > 0 && len(m.addressTables) == 0 {
 		return fmt.Errorf("cannot build account meta list without address tables")
 	}
 

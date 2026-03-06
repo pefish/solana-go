@@ -37,8 +37,9 @@ func Test_AccountSubscribe(t *testing.T) {
 
 	zlog, _ = zap.NewDevelopment()
 
-	c := Connect(context.Background(), "ws://api.mainnet-beta.solana.com:80")
+	c, err := Connect(context.Background(), "ws://api.mainnet-beta.solana.com:80")
 	defer c.Close()
+	require.NoError(t, err)
 
 	accountID := solana.MustPublicKeyFromBase58("SqJP6vrvMad5XBQK5PCFEZjeuQSFi959sdpqtSNvnsX")
 	sub, err := c.AccountSubscribe(accountID, "")
@@ -70,8 +71,9 @@ func Test_AccountSubscribeWithHttpHeader(t *testing.T) {
 		},
 	}
 
-	c := ConnectWithOptions(context.TODO(), "ws://api.mainnet-beta.solana.com:80", opt)
+	c, err := ConnectWithOptions(context.TODO(), "ws://api.mainnet-beta.solana.com:80", opt)
 	defer c.Close()
+	require.NoError(t, err)
 
 	accountID := solana.MustPublicKeyFromBase58("SqJP6vrvMad5XBQK5PCFEZjeuQSFi959sdpqtSNvnsX")
 	sub, err := c.AccountSubscribe(accountID, "")
@@ -115,9 +117,10 @@ func Test_ProgramSubscribe(t *testing.T) {
 	zlog, _ = zap.NewDevelopment()
 
 	fmt.Println("Dialing")
-	c := Connect(context.Background(), "wss://solana-api.projectserum.com")
+	c, err := Connect(context.Background(), "wss://solana-api.projectserum.com")
 	fmt.Println("Hello?")
 	defer c.Close()
+	require.NoError(t, err)
 
 	programID := solana.MustPublicKeyFromBase58("EUqojwWA2rd19FZrzeBncJsm38Jm1hEhE3zsmX3bRc2o")
 	sub, err := c.ProgramSubscribe(programID, "")
@@ -138,8 +141,9 @@ func Test_SlotSubscribe(t *testing.T) {
 
 	zlog, _ = zap.NewDevelopment()
 
-	c := Connect(context.Background(), "ws://api.mainnet-beta.solana.com:80")
+	c, err := Connect(context.Background(), "ws://api.mainnet-beta.solana.com:80")
 	defer c.Close()
+	require.NoError(t, err)
 
 	sub, err := c.SlotSubscribe()
 	require.NoError(t, err)
